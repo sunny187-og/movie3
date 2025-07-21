@@ -1,8 +1,6 @@
 import streamlit as st
 import random
-# CRITICAL FIX: Ensure 'recommend' is available from model.py
-# If 'model.py' had issues loading data or defining 'recommend', it would fail here.
-# The 'model.py' changes ensure 'recommend' is defined and exposed properly.
+ 
 from model import recommend, get_all_movies, get_all_actors, get_all_directors, get_all_genres, get_movie_details_from_df
 from utils import get_movie_details as get_movie_details_tmdb # Renamed to avoid clash with local function
 
@@ -112,7 +110,7 @@ if st.session_state.favorite:
 
             st.markdown("---") # Visual separator
 
-# ----------------- Popular Movies Scroll Section -----------------
+# ----------------- Popular Movies Scroll Section (FINAL FIX FOR CAPTION) -----------------
 st.markdown("#### Or pick from popular movies")
 
 pages = st.session_state.popular_movies_pages # Use the cached popular movie pages
@@ -158,15 +156,17 @@ with cols[1]:
                                 ⭐ {rating:.1f}
                             </div>
                             '''
+                        # --- THE FIX IS HERE ---
+                        # Use a single markdown block for the image, rating, and name
                         st.markdown(
                             f"""
-                            <div style="position: relative; margin-bottom: 5px;">
+                            <div style="position: relative; text-align: center; margin-bottom: 5px;">
                                 <img src="{poster_url}" alt="{name}" style="width: 100%; height: auto; object-fit: cover; border-radius: 5px;">
                                 {rating_html}
-                                <div style="text-align: center; font-size: 0.9em; margin-top: 5px;">{name}</div>
+                                <div style="font-size: 0.9em; margin-top: 5px;">{name}</div>
                             </div>
                             """,
-                            unsafe_allow_html=True # Allow Streamlit to render raw HTML
+                            unsafe_allow_html=True
                         )
                     else:
                         # Fallback if no poster
