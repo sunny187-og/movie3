@@ -21,59 +21,15 @@ if "popular_movies_data" not in st.session_state:
 if "search_results_display" not in st.session_state:
     st.session_state.search_results_display = []
 
-
-# --- Helper Function for Movie Card HTML (Simplified for extreme robustness against rendering issues) ---
-def get_movie_card_html_simplified(movie_name, poster_url, rating, width_css="100%", img_height_css="150px"):
+# --- Helper Function for a simple "No Poster" placeholder using st.write ---
+def get_no_poster_placeholder_st(height="150px"):
     """
-    Generates HTML for a movie card with poster, optional rating overlay, and title.
-    Designed for maximum compatibility by simplifying HTML structure.
+    Generates a placeholder for 'No Poster Available' using basic Streamlit elements,
+    without complex inline HTML for styling.
     """
-    # 1. Prepare image HTML (either poster or placeholder)
-    image_display_html = ""
-    if poster_url:
-        image_display_html = f'<img src="{poster_url}" alt="{movie_name}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 5px;">'
-    else:
-        image_display_html = f'''
-        <div style="width: 100%; height: {img_height_css}; background-color: #333; display: flex;
-                    flex-direction: column; align-items: center; justify-content: center; border-radius: 5px; text-align: center;
-                    color: #bbb; font-size: 0.9em; padding: 10px; box-sizing: border-box;">
-            <p style="margin:0; padding:0;">No Poster Available</p>
-        </div>
-        '''
-
-    # 2. Prepare rating overlay HTML
-    rating_overlay_html = ""
-    if rating is not None and rating != 'N/A':
-        rating_overlay_html = f'''
-        <div style="position: absolute; top: 5px; right: 5px;
-                     background-color: rgba(0, 0, 0, 0.7); color: white;
-                     padding: 2px 5px; border-radius: 3px; font-size: 0.7em; font-weight: bold; z-index: 1;">
-            ⭐ {rating:.1f}
-        </div>
-        '''
-
-    # 3. Combine all into a single, straightforward HTML block
-    # Avoid nested f-strings within the main f-string if possible for direct embedding.
-    # The structure is fixed to ensure predictable parsing.
-    final_html = f"""
-    <div style="
-        width: {width_css}; /* Control overall card width */
-        text-align: center;
-        margin-bottom: 5px;
-        position: relative; /* For absolute positioning of rating */
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    ">
-        <div style="width: 100%; height: {img_height_css}; margin-bottom: 5px;">
-            {image_display_html}
-        </div>
-        {rating_overlay_html}
-        <div style="font-size: 0.9em; word-wrap: break-word;">{movie_name}</div>
-    </div>
-    """
-    return final_html
-
+    st.write("") # Add a blank line for spacing similar to image
+    st.warning("No Poster Available", icon="🖼️") # Use Streamlit's warning box as a placeholder
+    st.write("") # Add another blank line for spacing
 
 # ----------------- Header -----------------
 st.title("🎬 Movie Recommender")
@@ -100,14 +56,21 @@ if fav_movie_input:
                     if tmdb_id:
                         poster_url, rating, _ = get_movie_details_tmdb(tmdb_id)
 
-                    card_html_content = get_movie_card_html_simplified(name, poster_url, rating, img_height_css="150px")
-                    st.markdown(card_html_content, unsafe_allow_html=True) # Use unsafe_allow_html=True
+                    # --- Pure Streamlit display for search results ---
+                    if poster_url:
+                        st.image(poster_url, use_column_width=True)
+                    else:
+                        get_no_poster_placeholder_st(height="150px") # Use Streamlit's warning box as placeholder
+
+                    st.markdown(f"**⭐ {rating if rating != 'N/A' else 'N/A'}**")
+                    st.markdown(f"**{name}**")
 
                     if st.button("Select", key=f"search_select_{name}_{tmdb_id}"):
                         st.session_state.favorite = name
                         st.rerun()
                 else:
-                    # Render an empty slot if fewer than 10 results - simplified
+                    # Render an empty slot if fewer than 10 results
+                    # Use simpler HTML that doesn't rely on complex f-strings for just whitespace
                     st.markdown(
                         '''
                         <div style="width: 100%; height: 150px; background-color: #222; display: flex;
@@ -134,11 +97,14 @@ if st.session_state.favorite:
         fav_cols = st.columns([1, 4])
 
         with fav_cols[0]:
-            fav_card_html_content = get_movie_card_html_simplified(
-                st.session_state.favorite, poster_url, rating,
-                width_css="150px", img_height_css="225px" # Specific dimensions for favorite movie
-            )
-            st.markdown(fav_card_html_content, unsafe_allow_html=True) # Use unsafe_allow_html=True
+            # --- Pure Streamlit display for favorite movie ---
+            if poster_url:
+                st.image(poster_url, width=150)
+            else:
+                get_no_poster_placeholder_st(height="225px") # Placeholder for favorite
+
+            st.markdown(f"**⭐ {rating if rating != 'N/A' else 'N/A'}**")
+
 
         with fav_cols[1]:
             if tagline:
@@ -196,8 +162,14 @@ with cols[1]:
                 poster_url, rating, _ = get_movie_details_tmdb(tmdb_id)
 
                 with cols_row[col_idx]:
-                    card_html_content = get_movie_card_html_simplified(name, poster_url, rating, img_height_css="150px")
-                    st.markdown(card_html_content, unsafe_allow_html=True) # Use unsafe_allow_html=True
+                    # --- Pure Streamlit display for popular movies ---
+                    if poster_url:
+                        st.image(poster_url, use_column_width=True)
+                    else:
+                        get_no_poster_placeholder_st(height="150px") # Use Streamlit's warning box as placeholder
+
+                    st.markdown(f"**⭐ {rating if rating != 'N/A' else 'N/A'}**")
+                    st.markdown(f"**{name}**")
 
                     if st.button("Select", key=f"pop_select_{name}_{tmdb_id}"):
                         st.session_state.favorite = name
@@ -243,8 +215,13 @@ if st.button("Recommend Movies 🎯"):
 
                 cols_rec = st.columns([1, 4])
                 with cols_rec[0]:
-                    card_html_content = get_movie_card_html_simplified(title, poster_url, rating, width_css="100px", img_height_css="150px")
-                    st.markdown(card_html_content, unsafe_allow_html=True) # Use unsafe_allow_html=True
+                    # --- Pure Streamlit display for recommended movies ---
+                    if poster_url:
+                        st.image(poster_url, width=100)
+                    else:
+                        get_no_poster_placeholder_st(width="100px", height="150px") # Placeholder for recommended
+
+                    st.markdown(f"**⭐ {rating if rating != 'N/A' else 'N/A'}**")
 
                 with cols_rec[1]:
                     st.markdown(f"**{title}**")
