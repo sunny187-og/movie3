@@ -56,10 +56,11 @@ def load_data():
     except FileNotFoundError as e:
         print(f"Error loading data files: {e}. Make sure 'data/' directory contains the CSVs.")
         # Create empty DataFrames to avoid further errors and allow app to start
-        movies = pd.DataFrame({'id':[], 'title':[], 'soup':[], 'genres':[], 'director':[], 'top_actors_list':[]})
+        # Use dummy values that won't cause immediate issues.
+        movies = pd.DataFrame({'id': [0], 'title': ["Error Loading Data"], 'soup': ["dummy"], 'genres': ["dummy"], 'director': ["dummy"], 'top_actors_list': [[]]})
         cos_sim = np.array([[0.0]]) # Initialize with a dummy similarity
-        title_to_index = pd.Series([0], index=["Dummy Movie"]) # Provide a dummy
-        title_to_tmdb_id = pd.Series([0], index=["Dummy Movie"]) # Provide a dummy
+        title_to_index = pd.Series([0], index=["Error Loading Data"])
+        title_to_tmdb_id = pd.Series([0], index=["Error Loading Data"])
         return
 
     # Merge DataFrames on 'id'
@@ -105,10 +106,12 @@ def get_recommendations(fav_movie, actor=None, director=None, genre=None, mood=N
     Generates movie recommendations based on a favorite movie and optional preferences.
     """
     # Check if data is loaded and fav_movie exists in the index
-    if movies is None or fav_movie not in title_to_index:
+    if movies is None or fav_movie not in title_to_index or title_to_index.empty:
         return []
 
     idx = title_to_index[fav_movie]
+    if isinstance(idx, pd.Series): # Handle cases where title_to_index might return multiple matches
+        idx = idx.iloc[0] # Take the first index
 
     # Get cosine similarity scores, converting tolist() to prevent ValueError
     sim_scores = list(enumerate(cos_sim[idx].tolist()))
@@ -178,13 +181,13 @@ def get_movie_details_from_df(movie_title):
 # --- Helper functions for Streamlit Selectboxes ---
 def get_all_movies():
     """Returns a dictionary mapping movie titles to TMDB IDs."""
-    if movies is not None:
+    if movies is not None and not title_to_tmdb_id.empty: # Check if mapping is not empty
         return title_to_tmdb_id.to_dict()
     return {}
 
 def get_all_actors():
     """Returns a sorted list of unique top actor names."""
-    if movies is not None:
+    if movies is not None and not movies.empty:
         all_actors = set()
         for actors_list_for_movie in movies['top_actors_list'].dropna():
             for actor_name in actors_list_for_movie:
@@ -195,13 +198,13 @@ def get_all_actors():
 
 def get_all_directors():
     """Returns a sorted list of unique director names."""
-    if movies is not None:
+    if movies is not None and not movies.empty:
         return sorted(movies['director'].dropna().astype(str).unique().tolist())
     return []
 
 def get_all_genres():
     """Returns a sorted list of unique genre names."""
-    if movies is not None:
+    if movies is not None and not movies.empty:
         genre_list = set()
         for genres_str in movies['genres'].dropna():
             for genre_name in genres_str.split(' '):
@@ -210,8 +213,9 @@ def get_all_genres():
         return sorted(list(genre_list))
     return []
 
+# CRITICAL FIX: Assign 'recommend' immediately after its definition.
+# This ensures it's available even if load_data() has issues.
+recommend = get_recommendations
+
 # Load data on module import
 load_data()
-# CRITICAL FIX: Ensure 'recommend' alias is set after 'get_recommendations' definition
-# This was causing the ImportError.
-recommend = get_recommendations
