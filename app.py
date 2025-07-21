@@ -1,6 +1,6 @@
 import streamlit as st
 import random
- 
+# Make sure model.py is correctly updated with all previous fixes
 from model import recommend, get_all_movies, get_all_actors, get_all_directors, get_all_genres, get_movie_details_from_df
 from utils import get_movie_details as get_movie_details_tmdb # Renamed to avoid clash with local function
 
@@ -80,7 +80,6 @@ all_movies = get_all_movies()
 fav_movie_input = st.text_input("Search for your favorite movie", key="fav_input")
 
 if fav_movie_input:
-    # FIX: Corrected typo m_m_title to m_title
     filtered_titles = [m_title for m_title in all_movies.keys() if fav_movie_input.lower() in m_title.lower()]
     # Store the filtered results in session state for consistent display
     st.session_state.search_results_display = filtered_titles[:10] # Cap at 10 for 2x5 grid
@@ -110,6 +109,7 @@ if fav_movie_input:
                         st.rerun()
                 else:
                     # Render an empty slot if fewer than 10 results
+                    # FIX IS ON THIS LINE: Removed {/* To align buttons below */}
                     st.markdown(
                         f'''
                         <div style="width: 100%; height: 150px; background-color: #222; display: flex;
@@ -118,7 +118,7 @@ if fav_movie_input:
                             &nbsp;
                         </div>
                         <div style="font-size: 0.9em; margin-top: 5px; text-align: center; color: #555;">&nbsp;</div>
-                        <div style="height: 38px;">&nbsp;</div> {/* To align buttons below */}
+                        <div style="height: 38px;">&nbsp;</div>
                         ''', unsafe_allow_html=True
                     )
     else:
