@@ -59,8 +59,8 @@ def load_data():
         # Use dummy values that won't cause immediate issues.
         movies = pd.DataFrame({'id': [0], 'title': ["Error Loading Data"], 'soup': ["dummy"], 'genres': ["dummy"], 'director': ["dummy"], 'top_actors_list': [[]]})
         cos_sim = np.array([[0.0]]) # Initialize with a dummy similarity
-        title_to_index = pd.Series([0], index=["Error Loading Data"])
-        title_to_tmdb_id = pd.Series([0], index=["Error Loading Data"])
+        title_to_index = pd.Series([0], index=["Dummy Movie"])
+        title_to_tmdb_id = pd.Series([0], index=["Dummy Movie"])
         return
 
     # Merge DataFrames on 'id'
