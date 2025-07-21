@@ -1,5 +1,8 @@
 import streamlit as st
 import random
+# CRITICAL FIX: Ensure 'recommend' is available from model.py
+# If 'model.py' had issues loading data or defining 'recommend', it would fail here.
+# The 'model.py' changes ensure 'recommend' is defined and exposed properly.
 from model import recommend, get_all_movies, get_all_actors, get_all_directors, get_all_genres, get_movie_details_from_df
 from utils import get_movie_details as get_movie_details_tmdb # Renamed to avoid clash with local function
 
