@@ -14,10 +14,10 @@ st.title("🎬 Movie Recommender")
 
 # ----------------- Favorite Movie Search -----------------
 all_movies = get_all_movies()
-fav_movie = st.text_input("Search for your favorite movie", key="fav_input")
+fav_movie_input = st.text_input("Search for your favorite movie", key="fav_input")
 
-if fav_movie:
-    filtered = [m for m in all_movies if fav_movie.lower() in m.lower()]
+if fav_movie_input:
+    filtered = [m for m in all_movies if fav_movie_input.lower() in m.lower()]
     top10 = filtered[:10]
     for i, movie in enumerate(top10):
         if st.button(movie, key=f"movie_btn_{i}"):
@@ -26,14 +26,15 @@ if fav_movie:
 # ----------------- Favorite Movie Thumbnail -----------------
 if st.session_state.favorite:
     st.markdown(f"**Selected Favorite:** {st.session_state.favorite}")
-    tmdb_id = all_movies[st.session_state.favorite]
-    poster_url, _, _ = get_movie_details(tmdb_id)
-    if poster_url:
-        st.image(poster_url, width=150)
+    tmdb_id = all_movies.get(st.session_state.favorite)
+    if tmdb_id:
+        poster_url, _, _ = get_movie_details(tmdb_id)
+        if poster_url:
+            st.image(poster_url, width=150)
 
 # ----------------- Popular Movies Scroll Section -----------------
 st.markdown("#### Or pick from popular movies")
-popular_movies = random.sample(list(all_movies.items()), 30)
+popular_movies = random.sample(list(all_movies.items()), min(30, len(all_movies)))
 pages = [popular_movies[i:i+10] for i in range(0, len(popular_movies), 10)]
 
 if "page" not in st.session_state:
@@ -46,7 +47,7 @@ with cols[0]:
 
 with cols[2]:
     if st.button("➡️", key="next"):
-        st.session_state.page = min(len(pages)-1, st.session_state.page + 1)
+        st.session_state.page = min(len(pages) - 1, st.session_state.page + 1)
 
 # Display grid of 2 rows x 5 columns
 with cols[1]:
@@ -84,6 +85,7 @@ if st.button("Recommend Movies 🎯"):
             genre=genre,
             mood=mood
         )
+
         for rec in recommendations:
             title = rec['title']
             tmdb_id = rec['tmdb_id']
@@ -96,6 +98,6 @@ if st.button("Recommend Movies 🎯"):
                     st.image(poster_url, width=100)
             with cols[1]:
                 st.markdown(f"**{title}**")
-                st.markdown(f"⭐ IMDb: {rating}")
+                st.markdown(f"⭐ IMDb: {rating if rating else 'N/A'}")
                 st.markdown(f"📝 {tagline if tagline else reason}")
                 st.markdown("---")
