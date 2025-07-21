@@ -1,7 +1,8 @@
 import streamlit as st
 import random
+# Make sure model.py is correctly updated with all previous fixes
 from model import recommend, get_all_movies, get_all_actors, get_all_directors, get_all_genres, get_movie_details_from_df
-from utils import get_movie_details as get_movie_details_tmdb
+from utils import get_movie_details as get_movie_details_tmdb # Renamed to avoid clash with local function
 
 st.set_page_config(page_title="Movie Recommender", layout="wide")
 
@@ -18,18 +19,21 @@ if "popular_movies_data" not in st.session_state:
 
 
 # --- Helper Function for Movie Card HTML (for popular/recommended movies where simpler display is used) ---
-# This helper function is not strictly needed anymore for its initial purpose due to simplification,
-# but can be used for consistency if we decide to re-introduce more complex HTML later.
-# For now, keeping it minimal to avoid re-introducing issues.
-def get_movie_card_html_simplified(movie_name, poster_url, rating, width="100%", height="auto"):
-    """Generates simplified HTML for a movie card with poster, optional rating, and title."""
-    image_html = ""
+# This helper function is designed to work whether a poster is available or not.
+def get_movie_card_html_simplified(movie_name, poster_url, rating, width_css="100%", img_height_css="auto", container_height_css="200px"):
+    """
+    Generates simplified HTML for a movie card with poster, optional rating, and title.
+    Includes a placeholder box if no poster is available.
+    width_css and img_height_css control the image/box dimensions.
+    container_height_css controls the overall height of the card for alignment.
+    """
+    image_or_placeholder_html = ""
     if poster_url:
-        image_html = f'<img src="{poster_url}" alt="{movie_name}" style="width: 100%; height: auto; object-fit: cover; border-radius: 5px;">'
+        image_or_placeholder_html = f'<img src="{poster_url}" alt="{movie_name}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 5px;">'
     else:
         # Placeholder for no poster
-        image_html = f'''
-        <div style="width: 100%; height: {height}; background-color: #333; display: flex;
+        image_or_placeholder_html = f'''
+        <div style="width: 100%; height: 100%; background-color: #333; display: flex;
                     align-items: center; justify-content: center; border-radius: 5px; text-align: center;
                     color: #bbb; font-size: 0.9em; padding: 10px; box-sizing: border-box;">
             No Poster Available
@@ -37,30 +41,43 @@ def get_movie_card_html_simplified(movie_name, poster_url, rating, width="100%",
         '''
 
     rating_display = ""
-    if rating and rating != 'N/A':
+    if rating is not None and rating != 'N/A': # Check for None explicitly
         rating_display = f"⭐ {rating:.1f}"
     else:
         rating_display = "⭐ N/A"
 
     return f"""
-    <div style="text-align: center; margin-bottom: 5px; width: {width};">
-        {image_html}
-        <div style="font-size: 0.9em; margin-top: 5px;">
-            <span style="font-weight: bold;">{rating_display}</span><br>
-            {movie_name}
+    <div style="
+        text-align: center;
+        margin-bottom: 5px;
+        width: {width_css};
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    ">
+        <div style="position: relative; width: 100%; height: {img_height_css}; margin-bottom: 5px;">
+            {image_or_placeholder_html}
+            <div style="position: absolute; top: 5px; right: 5px;
+                         background-color: rgba(0, 0, 0, 0.7); color: white;
+                         padding: 2px 5px; border-radius: 3px; font-size: 0.7em; font-weight: bold; z-index: 1;">
+                {rating_display}
+            </div>
         </div>
+        <div style="font-size: 0.9em; margin-top: 5px; word-wrap: break-word;">{movie_name}</div>
     </div>
     """
+
 
 # ----------------- Header -----------------
 st.title("🎬 Movie Recommender")
 
 # ----------------- Favorite Movie Search Input -----------------
-all_movies = get_all_movies()
+all_movies = get_all_movies() # Dictionary: {movie_title: tmdb_id}
 fav_movie_input = st.text_input("Search for your favorite movie", key="fav_input")
 
 if fav_movie_input:
-    filtered_titles = [m_title for m_m_title in all_movies.keys() if fav_movie_input.lower() in m_m_title.lower()]
+    # FIX: Corrected typo m_m_title to m_title
+    filtered_titles = [m_title for m_title in all_movies.keys() if fav_movie_input.lower() in m_title.lower()]
     top10 = filtered_titles[:10]
     for i, movie_title in enumerate(top10):
         if st.button(movie_title, key=f"fav_search_btn_{i}"):
@@ -79,40 +96,39 @@ if st.session_state.favorite:
         fav_cols = st.columns([1, 4])
 
         with fav_cols[0]: # Left column for poster and its overlaid rating
+            # Use the more complex HTML for favorite movie display
+            # This HTML is for a *single* element, so it's less prone to repeated issues.
+            image_or_placeholder_html_fav = ""
             if poster_url:
-                rating_html = ""
-                if rating and rating != 'N/A':
-                    rating_html = f'''
-                    <div style="position: absolute; top: 5px; right: 5px;
-                                 background-color: rgba(0, 0, 0, 0.7); color: white;
-                                 padding: 3px 6px; border-radius: 5px; font-size: 0.8em;
-                                 font-weight: bold; z-index: 1;">
-                        ⭐ {rating:.1f}
-                    </div>
-                    '''
-                st.markdown(
-                    f"""
-                    <div style="position: relative; width: 150px; height: 225px; margin-bottom: 10px;">
-                        <img src="{poster_url}" alt="{st.session_state.favorite}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 5px;">
-                        {rating_html}
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+                image_or_placeholder_html_fav = f'<img src="{poster_url}" alt="{st.session_state.favorite}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 5px;">'
             else:
-                # Fallback box for no poster on Favorite Movie
-                st.markdown(
-                    f'''
-                    <div style="width: 150px; height: 225px; background-color: #333; display: flex;
-                                align-items: center; justify-content: center; border-radius: 5px; text-align: center;
-                                color: #bbb; font-size: 1em; font-weight: bold; padding: 10px; box-sizing: border-box;
-                                margin-bottom: 10px;">
-                        No Poster Available
-                    </div>
-                    ''',
-                    unsafe_allow_html=True
-                )
+                image_or_placeholder_html_fav = f'''
+                <div style="width: 100%; height: 100%; background-color: #333; display: flex;
+                            align-items: center; justify-content: center; border-radius: 5px; text-align: center;
+                            color: #bbb; font-size: 1em; font-weight: bold; padding: 10px; box-sizing: border-box;">
+                    No Poster Available
+                </div>
+                '''
 
+            rating_html_fav = ""
+            if rating is not None and rating != 'N/A':
+                rating_html_fav = f'''
+                <div style="position: absolute; top: 5px; right: 5px;
+                             background-color: rgba(0, 0, 0, 0.7); color: white;
+                             padding: 3px 6px; border-radius: 5px; font-size: 0.8em;
+                             font-weight: bold; z-index: 1;">
+                    ⭐ {rating:.1f}
+                </div>
+                '''
+            st.markdown(
+                f"""
+                <div style="position: relative; width: 150px; height: 225px; margin-bottom: 10px;">
+                    {image_or_placeholder_html_fav}
+                    {rating_html_fav}
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
         with fav_cols[1]: # Right column for movie details
             if tagline:
@@ -170,9 +186,8 @@ with cols[1]:
                 poster_url, rating, _ = get_movie_details_tmdb(tmdb_id)
 
                 with cols_row[col_idx]:
-                    # Use the simplified helper for consistent rendering
-                    # The helper now directly handles the "No Poster" case
-                    card_html_content = get_movie_card_html_simplified(name, poster_url, rating, height="150px") # Define a height for the box
+                    # Use the simplified helper for consistent rendering, including no-poster box
+                    card_html_content = get_movie_card_html_simplified(name, poster_url, rating, img_height_css="150px") # Height for popular movie posters
                     st.markdown(card_html_content, unsafe_allow_html=True)
 
                     if st.button("Select", key=f"pop_select_{name}_{tmdb_id}"):
@@ -218,16 +233,11 @@ if st.button("Recommend Movies 🎯"):
 
                 cols_rec = st.columns([1, 4])
                 with cols_rec[0]:
-                    # Use the simplified helper for consistent rendering
-                    # The helper now directly handles the "No Poster" case
-                    card_html_content = get_movie_card_html_simplified(title, poster_url, rating, width="100px", height="150px") # Specific dimensions for recs
+                    # Use the simplified helper for consistent rendering, including no-poster box
+                    card_html_content = get_movie_card_html_simplified(title, poster_url, rating, width_css="100px", img_height_css="150px") # Specific dimensions for recs
                     st.markdown(card_html_content, unsafe_allow_html=True)
 
                 with cols_rec[1]:
-                    st.markdown(f"**{title}**")
-                    st.markdown(f"⭐ IMDb: {rating if rating else 'N/A'}")
-                    st.markdown(f"📝 {tagline if tagline else reason}")
-                    st.markdown("---")
                     st.markdown(f"**{title}**")
                     st.markdown(f"⭐ IMDb: {rating if rating else 'N/A'}")
                     st.markdown(f"📝 {tagline if tagline else reason}")
