@@ -103,3 +103,17 @@ def get_recommendations(fav_movie, actor=None, director=None, genre=None, mood=N
     candidates['final_score'] = candidates['boost'] + candidates.index.map(lambda x: cos_sim[idx][x])
     final_recommendations = candidates.sort_values('final_score', ascending=False)
     return final_recommendations['title'].head(topn).tolist()
+
+
+# Aliases and helper functions expected by app.py
+recommend = get_recommendations  # Alias for import
+
+def get_all_movies():
+    return movies['title'].tolist()
+
+def get_all_actors():
+    return sorted(set(actor for soup in movies['soup'] for actor in soup.split() if actor.istitle()))
+
+def get_all_directors():
+    return sorted(set(movies['soup'].str.extract(r'([A-Z][a-z]+(?:\s[A-Z][a-z]+)*)')[0].dropna()))
+
