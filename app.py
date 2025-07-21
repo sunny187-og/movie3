@@ -58,7 +58,8 @@ if fav_movie_input:
 
                     # --- Pure Streamlit display for search results ---
                     if poster_url:
-                        st.image(poster_url, use_column_width=True)
+                        # Changed use_column_width to use_container_width
+                        st.image(poster_url, use_container_width=True)
                     else:
                         get_no_poster_placeholder_st(height="150px") # Use Streamlit's warning box as placeholder
 
@@ -74,8 +75,8 @@ if fav_movie_input:
                     st.markdown(
                         '''
                         <div style="width: 100%; height: 150px; background-color: #222; display: flex;
-                                    align-items: center; justify-content: center; border-radius: 5px;
-                                    color: #555; font-size: 0.9em;">
+                                     align-items: center; justify-content: center; border-radius: 5px;
+                                     color: #555; font-size: 0.9em;">
                             &nbsp;
                         </div>
                         <div style="height: 38px;">&nbsp;</div> ''', unsafe_allow_html=True
@@ -164,7 +165,8 @@ with cols[1]:
                 with cols_row[col_idx]:
                     # --- Pure Streamlit display for popular movies ---
                     if poster_url:
-                        st.image(poster_url, use_column_width=True)
+                        # Changed use_column_width to use_container_width
+                        st.image(poster_url, use_container_width=True)
                     else:
                         get_no_poster_placeholder_st(height="150px") # Use Streamlit's warning box as placeholder
 
