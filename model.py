@@ -118,11 +118,14 @@ def get_all_directors():
     return sorted(set(movies['soup'].str.extract(r'([A-Z][a-z]+(?:\s[A-Z][a-z]+)*)')[0].dropna()))
 
 def get_all_genres():
-    all_genres = set()
-    for genre_list in movies['genres']:
-        for genre in genre_list.split():
-            all_genres.add(genre.strip())
-    return sorted(all_genres)
+    if movies is not None:
+        genre_list = set()
+        for genres in movies['genres']:
+            if isinstance(genres, list):
+                genre_list.update(genres)
+        return sorted(genre_list)
+    return []
+
 
 # Load data on module import
 load_data()
