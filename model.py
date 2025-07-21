@@ -10,13 +10,15 @@ from sklearn.metrics.pairwise import cosine_similarity
 movies = None
 cos_sim = None
 title_to_index = None
+# Add a global variable for title to tmdb_id mapping
+title_to_tmdb_id = None
 
 def extract_names(json_str, key='name', topn=None):
     try:
         items = ast.literal_eval(json_str)
         names = [item[key] for item in items]
         return ' '.join(names[:topn]) if topn else ' '.join(names)
-    except:
+    except (ValueError, SyntaxError): # Catch more potential parsing errors
         return ''
 
 def get_director(crew_str):
@@ -26,11 +28,11 @@ def get_director(crew_str):
             if member.get('job') == 'Director':
                 return member.get('name', '')
         return ''
-    except:
+    except (ValueError, SyntaxError): # Catch more potential parsing errors
         return ''
 
 def load_data():
-    global movies, cos_sim, title_to_index
+    global movies, cos_sim, title_to_index, title_to_tmdb_id
 
     metadata = pd.read_csv("data/clean_metadata.csv")
     credits = pd.read_csv("data/trimmed_credits.csv")
@@ -48,20 +50,24 @@ def load_data():
     movies['soup'] = movies.apply(create_soup, axis=1)
 
     tfidf = TfidfVectorizer(stop_words='english')
+    # Handle NaN values in 'soup' column before fitting
     soup_matrix = tfidf.fit_transform(movies['soup'].fillna(''))
     cos_sim = cosine_similarity(soup_matrix, soup_matrix)
 
-    movies = movies[['id', 'title', 'soup']].rename(columns={'id': 'movieId'})
+    # Make sure 'id' column is the TMDB ID, rename it to tmdb_id for clarity
+    movies = movies[['id', 'title', 'soup', 'genres', 'director', 'top_actors']].rename(columns={'id': 'tmdb_id'})
     movies.reset_index(drop=True, inplace=True)
     title_to_index = pd.Series(movies.index, index=movies['title'])
+    # Create the new mapping from title to tmdb_id
+    title_to_tmdb_id = pd.Series(movies['tmdb_id'].values, index=movies['title'])
 
     return movies
 
 def get_recommendations(fav_movie, actor=None, director=None, genre=None, mood=None, topn=5):
     if fav_movie not in title_to_index:
-        return f"'{fav_movie}' not found in dataset."
+        return [] # Return an empty list if movie not found, as app.py expects a list
 
-  # Step 1: Get index of the favorite movie
+    # Step 1: Get index of the favorite movie
     idx = title_to_index[fav_movie]
 
     # Step 2: Get cosine similarity scores
@@ -77,56 +83,82 @@ def get_recommendations(fav_movie, actor=None, director=None, genre=None, mood=N
     # Step 5: Prepare candidate movies
     candidates = movies.iloc[movie_indices].copy()
 
-    def boost(row):
+    def calculate_boost_score(row):
         score = 0
-        if actor and actor.lower() in row['soup'].lower():
+        reason = [] # To store why a movie was recommended
+
+        if actor and actor.lower() in row['top_actors'].lower(): # Check top_actors for actor
             score += 0.5
-        if director and director.lower() in row['soup'].lower():
+            reason.append(f"Features {actor}")
+        if director and director.lower() in row['director'].lower(): # Check director column for director
             score += 0.5
-        if genre and genre.lower() in row['soup'].lower():
+            reason.append(f"Directed by {director}")
+        if genre and genre.lower() in row['genres'].lower(): # Check genres column for genre
             score += 0.3
+            reason.append(f"Is a {genre} movie")
+
         if mood:
             mood_genre_map = {
                 'happy': ['comedy', 'adventure', 'family'],
                 'sad': ['drama', 'romance'],
-                'thrilling': ['thriller', 'mystery', 'action'],
-                'scary': ['horror', 'mystery'],
-                'exciting': ['action', 'sci-fi'],
-                'emotional': ['drama', 'romance']
+                'excited': ['action', 'sci-fi', 'adventure'], # Added 'adventure' for 'excited'
+                'romantic': ['romance', 'drama'], # Added 'romantic' mood mapping
+                'curious': ['mystery', 'documentary'], # Added 'curious' mood mapping
+                'dark': ['thriller', 'horror', 'crime'], # Added 'dark' mood mapping
+                'calm': ['documentary', 'drama', 'history'] # Added 'calm' mood mapping
             }
             related_genres = mood_genre_map.get(mood.lower(), [])
-            if any(g.lower() in row['soup'].lower() for g in related_genres):
+            if any(g.lower() in row['genres'].lower() for g in related_genres): # Check genres for mood
                 score += 0.3
-        return score
+                reason.append(f"Matches your '{mood}' mood")
+        return score, "; ".join(reason) if reason else "Similar to your favorite movie"
 
-    candidates['boost'] = candidates.apply(boost, axis=1)
+    candidates[['boost', 'reason']] = candidates.apply(lambda row: pd.Series(calculate_boost_score(row)), axis=1)
     candidates['final_score'] = candidates['boost'] + candidates.index.map(lambda x: cos_sim[idx][x])
     final_recommendations = candidates.sort_values('final_score', ascending=False)
-    return final_recommendations['title'].head(topn).tolist()
+
+    # Return a list of dictionaries as app.py expects
+    return final_recommendations.head(topn).apply(
+        lambda row: {'title': row['title'], 'tmdb_id': row['tmdb_id'], 'reason': row['reason']}, axis=1
+    ).tolist()
 
 
 # Aliases and helper functions expected by app.py
 recommend = get_recommendations  # Alias for import
 
 def get_all_movies():
-    return movies['title'].tolist()
+    # Return a dictionary mapping title to tmdb_id
+    if movies is not None:
+        return title_to_tmdb_id.to_dict()
+    return {}
 
 def get_all_actors():
-    return sorted(set(actor for soup in movies['soup'] for actor in soup.split() if actor.istitle()))
+    # Collect all unique actors from 'top_actors' column
+    if movies is not None:
+        all_actors = set()
+        for actors_str in movies['top_actors'].dropna():
+            for actor in actors_str.split(' '): # Split by space as per extract_names
+                if actor: # Ensure not empty string
+                    all_actors.add(actor.strip())
+        return sorted(list(all_actors))
+    return []
 
 def get_all_directors():
-    return sorted(set(movies['soup'].str.extract(r'([A-Z][a-z]+(?:\s[A-Z][a-z]+)*)')[0].dropna()))
+    # Collect all unique directors from 'director' column
+    if movies is not None:
+        return sorted(movies['director'].dropna().unique().tolist())
+    return []
 
 def get_all_genres():
     if movies is not None:
         genre_list = set()
-        for genres in movies['genres']:
-            if isinstance(genres, list):
-                genre_list.update(genres)
-        return sorted(genre_list)
+        for genres_str in movies['genres'].dropna():
+            # Genres are space-separated strings after extract_names
+            for genre in genres_str.split(' '):
+                if genre: # Ensure not empty string
+                    genre_list.add(genre.strip())
+        return sorted(list(genre_list))
     return []
-
 
 # Load data on module import
 load_data()
-
