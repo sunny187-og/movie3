@@ -21,7 +21,8 @@ if fav_movie_input:
     filtered_titles = [m_title for m_title in all_movies.keys() if fav_movie_input.lower() in m_title.lower()]
     top10 = filtered_titles[:10]
     for i, movie_title in enumerate(top10):
-        if st.button(movie_title, key=f"movie_btn_{i}"):
+        # Use a distinct key for each button to avoid conflicts
+        if st.button(movie_title, key=f"fav_search_btn_{i}"):
             st.session_state.favorite = movie_title
 
 # ----------------- Favorite Movie Thumbnail -----------------
@@ -38,7 +39,9 @@ if st.session_state.favorite:
 st.markdown("#### Or pick from popular movies")
 # Get a list of (title, tmdb_id) tuples from all_movies dictionary
 all_movie_items = list(all_movies.items())
-popular_movies = random.sample(all_movie_items, min(30, len(all_movie_items))) # Changed to use all_movie_items
+# Ensure there are enough movies to sample, otherwise take all
+num_samples = min(30, len(all_movie_items))
+popular_movies = random.sample(all_movie_items, num_samples)
 pages = [popular_movies[i:i+10] for i in range(0, len(popular_movies), 10)]
 
 if "page" not in st.session_state:
@@ -46,29 +49,34 @@ if "page" not in st.session_state:
 
 cols = st.columns([1, 10, 1])
 with cols[0]:
-    if st.button("⬅️", key="prev"):
+    if st.button("⬅️", key="prev_page"): # Changed key to avoid conflict
         st.session_state.page = max(0, st.session_state.page - 1)
 
 with cols[2]:
-    if st.button("➡️", key="next"):
+    if st.button("➡️", key="next_page"): # Changed key to avoid conflict
         st.session_state.page = min(len(pages) - 1, st.session_state.page + 1)
 
 # Display grid of 2 rows x 5 columns
 with cols[1]:
     grid = pages[st.session_state.page]
-    for row in range(2):
+    for row_idx in range(2): # Use row_idx to avoid conflict with 'row' var
         cols_row = st.columns(5)
-        for col in range(5):
-            idx = row * 5 + col
+        for col_idx in range(5): # Use col_idx to avoid conflict with 'col' var
+            idx = row_idx * 5 + col_idx
             if idx < len(grid):
                 name, tmdb_id = grid[idx] # 'name' here is the movie title
                 poster_url, _, _ = get_movie_details(tmdb_id)
-                if poster_url:
-                    # The button's key should be unique; using the movie name is fine here
-                    if cols_row[col].button("", key=f"pop_{name}"):
+
+                with cols_row[col_idx]: # Place elements within the specific column
+                    if poster_url:
+                        st.image(poster_url, caption=name, use_container_width=True)
+                    else:
+                        st.write(name) # Display name if poster not available
+
+                    # Add an explicit button for selection below the image
+                    if st.button("Select", key=f"pop_select_{name}_{tmdb_id}"): # Unique key combining name and tmdb_id
                         st.session_state.favorite = name
-                    # --- FIX APPLIED HERE ---
-                    cols_row[col].image(poster_url, caption=name, use_container_width=True)
+                        st.rerun() # Rerun to immediately update the favorite movie thumbnail
 
 # ----------------- Additional Preferences -----------------
 st.markdown("### Additional Preferences")
@@ -101,11 +109,11 @@ if st.button("Recommend Movies 🎯"):
                 reason = rec['reason']
                 poster_url, rating, tagline = get_movie_details(tmdb_id)
 
-                cols = st.columns([1, 4])
-                with cols[0]:
+                cols_rec = st.columns([1, 4]) # Changed variable name to avoid conflict
+                with cols_rec[0]:
                     if poster_url:
                         st.image(poster_url, width=100)
-                with cols[1]:
+                with cols_rec[1]:
                     st.markdown(f"**{title}**")
                     st.markdown(f"⭐ IMDb: {rating if rating else 'N/A'}")
                     st.markdown(f"📝 {tagline if tagline else reason}")
