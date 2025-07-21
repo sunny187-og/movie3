@@ -13,19 +13,21 @@ if "favorite" not in st.session_state:
 st.title("🎬 Movie Recommender")
 
 # ----------------- Favorite Movie Search -----------------
-all_movies = get_all_movies()
+all_movies = get_all_movies() # This is now a dictionary: {title: tmdb_id}
 fav_movie_input = st.text_input("Search for your favorite movie", key="fav_input")
 
 if fav_movie_input:
-    filtered = [m for m in all_movies if fav_movie_input.lower() in m.lower()]
-    top10 = filtered[:10]
-    for i, movie in enumerate(top10):
-        if st.button(movie, key=f"movie_btn_{i}"):
-            st.session_state.favorite = movie
+    # Filter movie titles based on input (case-insensitive)
+    filtered_titles = [m_title for m_title in all_movies.keys() if fav_movie_input.lower() in m_title.lower()]
+    top10 = filtered_titles[:10]
+    for i, movie_title in enumerate(top10):
+        if st.button(movie_title, key=f"movie_btn_{i}"):
+            st.session_state.favorite = movie_title
 
 # ----------------- Favorite Movie Thumbnail -----------------
 if st.session_state.favorite:
     st.markdown(f"**Selected Favorite:** {st.session_state.favorite}")
+    # Retrieve tmdb_id using the selected movie title from the dictionary
     tmdb_id = all_movies.get(st.session_state.favorite)
     if tmdb_id:
         poster_url, _, _ = get_movie_details(tmdb_id)
@@ -34,7 +36,9 @@ if st.session_state.favorite:
 
 # ----------------- Popular Movies Scroll Section -----------------
 st.markdown("#### Or pick from popular movies")
-popular_movies = random.sample(list(all_movies.items()), min(30, len(all_movies)))
+# Get a list of (title, tmdb_id) tuples from all_movies dictionary
+all_movie_items = list(all_movies.items())
+popular_movies = random.sample(all_movie_items, min(30, len(all_movie_items))) # Changed to use all_movie_items
 pages = [popular_movies[i:i+10] for i in range(0, len(popular_movies), 10)]
 
 if "page" not in st.session_state:
@@ -57,12 +61,14 @@ with cols[1]:
         for col in range(5):
             idx = row * 5 + col
             if idx < len(grid):
-                name, tmdb_id = grid[idx]
+                name, tmdb_id = grid[idx] # 'name' here is the movie title
                 poster_url, _, _ = get_movie_details(tmdb_id)
                 if poster_url:
+                    # The button's key should be unique; using the movie name is fine here
                     if cols_row[col].button("", key=f"pop_{name}"):
                         st.session_state.favorite = name
-                    cols_row[col].image(poster_url, caption=name, use_column_width=True)
+                    # --- FIX APPLIED HERE ---
+                    cols_row[col].image(poster_url, caption=name, use_container_width=True)
 
 # ----------------- Additional Preferences -----------------
 st.markdown("### Additional Preferences")
@@ -86,18 +92,21 @@ if st.button("Recommend Movies 🎯"):
             mood=mood
         )
 
-        for rec in recommendations:
-            title = rec['title']
-            tmdb_id = rec['tmdb_id']
-            reason = rec['reason']
-            poster_url, rating, tagline = get_movie_details(tmdb_id)
+        if not recommendations: # Handle case where no recommendations are found
+            st.info("No recommendations found based on your criteria. Try different preferences!")
+        else:
+            for rec in recommendations:
+                title = rec['title']
+                tmdb_id = rec['tmdb_id']
+                reason = rec['reason']
+                poster_url, rating, tagline = get_movie_details(tmdb_id)
 
-            cols = st.columns([1, 4])
-            with cols[0]:
-                if poster_url:
-                    st.image(poster_url, width=100)
-            with cols[1]:
-                st.markdown(f"**{title}**")
-                st.markdown(f"⭐ IMDb: {rating if rating else 'N/A'}")
-                st.markdown(f"📝 {tagline if tagline else reason}")
-                st.markdown("---")
+                cols = st.columns([1, 4])
+                with cols[0]:
+                    if poster_url:
+                        st.image(poster_url, width=100)
+                with cols[1]:
+                    st.markdown(f"**{title}**")
+                    st.markdown(f"⭐ IMDb: {rating if rating else 'N/A'}")
+                    st.markdown(f"📝 {tagline if tagline else reason}")
+                    st.markdown("---")
