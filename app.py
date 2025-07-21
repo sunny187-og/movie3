@@ -1,6 +1,6 @@
 import streamlit as st
 import random
-# Make sure model.py is correctly updated with all previous fixes
+# Ensure model.py is correctly updated with all previous fixes
 from model import recommend, get_all_movies, get_all_actors, get_all_directors, get_all_genres, get_movie_details_from_df
 from utils import get_movie_details as get_movie_details_tmdb # Renamed to avoid clash with local function
 
@@ -21,97 +21,51 @@ if "popular_movies_data" not in st.session_state:
 if "search_results_display" not in st.session_state:
     st.session_state.search_results_display = []
 
-
-# --- Helper Function for Movie Card HTML (for popular/recommended movies where simpler display is used) ---
-def get_movie_card_html_simplified(movie_name, poster_url, rating, width_css="100%", img_height_css="auto"):
-    """
-    Generates simplified HTML for a movie card with poster, optional rating, and title.
-    Includes a placeholder box if no poster is available.
-    width_css and img_height_css control the image/box dimensions.
-    """
-    image_or_placeholder_html = ""
-    # Define placeholder box dimensions explicitly to match typical poster aspect ratio
-    placeholder_height = img_height_css # Use the provided img_height_css for consistent height
-
-    if poster_url:
-        image_or_placeholder_html = f'<img src="{poster_url}" alt="{movie_name}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 5px;">'
-    else:
-        # Placeholder for no poster
-        image_or_placeholder_html = f'''
-        <div style="width: 100%; height: {placeholder_height}; background-color: #333; display: flex;
-                    flex-direction: column; align-items: center; justify-content: center; border-radius: 5px; text-align: center;
-                    color: #bbb; font-size: 0.9em; padding: 10px; box-sizing: border-box;">
-            <p>No Poster Available</p>
-        </div>
-        '''
-
-    rating_html = ""
-    if rating is not None and rating != 'N/A': # Check for None explicitly
-        rating_html = f'''
-        <div style="position: absolute; top: 5px; right: 5px;
-                     background-color: rgba(0, 0, 0, 0.7); color: white;
-                     padding: 2px 5px; border-radius: 3px; font-size: 0.7em; font-weight: bold; z-index: 1;">
-            ⭐ {rating:.1f}
-        </div>
-        '''
-
-    return f"""
-    <div style="
-        text-align: center;
-        margin-bottom: 5px;
-        width: {width_css};
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    ">
-        <div style="position: relative; width: 100%; height: {img_height_css}; margin-bottom: 5px;">
-            {image_or_placeholder_html}
-            {rating_html}
-        </div>
-        <div style="font-size: 0.9em; margin-top: 5px; word-wrap: break-word;">{movie_name}</div>
-    </div>
-    """
+# --- No more get_movie_card_html_simplified helper function ---
+# It's removed because it was causing the persistent HTML rendering issues.
 
 # ----------------- Header -----------------
 st.title("🎬 Movie Recommender")
 
-# ----------------- Favorite Movie Search Input (UPDATED FOR GRID DISPLAY) -----------------
+# ----------------- Favorite Movie Search Input -----------------
 all_movies = get_all_movies()
 fav_movie_input = st.text_input("Search for your favorite movie", key="fav_input")
 
 if fav_movie_input:
     filtered_titles = [m_title for m_title in all_movies.keys() if fav_movie_input.lower() in m_title.lower()]
-    # Store the filtered results in session state for consistent display
-    st.session_state.search_results_display = filtered_titles[:10] # Cap at 10 for 2x5 grid
+    st.session_state.search_results_display = filtered_titles[:10]
 
-    # Display the search results in a 2x5 grid
     if st.session_state.search_results_display:
         st.markdown("#### Search Results:")
-        search_grid_layout = st.columns(5) # 5 columns for the grid
+        search_grid_layout = st.columns(5)
 
-        for i in range(10): # Iterate for 10 slots (2 rows * 5 columns)
-            with search_grid_layout[i % 5]: # Place in the correct column for the row
+        for i in range(10):
+            with search_grid_layout[i % 5]:
                 if i < len(st.session_state.search_results_display):
                     name = st.session_state.search_results_display[i]
-                    tmdb_id = all_movies.get(name) # Get TMDB ID from the global all_movies dict
+                    tmdb_id = all_movies.get(name)
 
-                    poster_url, rating, _ = "", "N/A", "" # Initialize for safety
-                    if tmdb_id: # Only fetch if we have a valid TMDB ID
+                    poster_url, rating, _ = "", "N/A", ""
+                    if tmdb_id:
                         poster_url, rating, _ = get_movie_details_tmdb(tmdb_id)
 
-                    # Render movie card using the simplified helper
-                    card_html_content = get_movie_card_html_simplified(name, poster_url, rating, img_height_css="150px")
-                    st.markdown(card_html_content, unsafe_allow_html=True)
+                    # --- Native Streamlit display for search results ---
+                    if poster_url:
+                        st.image(poster_url, use_column_width=True)
+                    else:
+                        st.markdown('<div style="background-color:#333; height:150px; display:flex; align-items:center; justify-content:center; border-radius:5px; color:#bbb; text-align:center; font-size:0.9em;">No Poster Available</div>', unsafe_allow_html=True)
+                        st.markdown("<br>", unsafe_allow_html=True) # Add some space if no poster
 
-                    # Add "Select" button below the card
+                    st.markdown(f"**⭐ {rating if rating != 'N/A' else 'N/A'}**")
+                    st.markdown(f"**{name}**")
+
                     if st.button("Select", key=f"search_select_{name}_{tmdb_id}"):
                         st.session_state.favorite = name
                         st.rerun()
                 else:
-                    # Render an empty slot if fewer than 10 results
-                    # FIX IS ON THIS LINE: Removed {/* To align buttons below */}
+                    # Empty slots for alignment
                     st.markdown(
-                        f'''
+                        '''
                         <div style="width: 100%; height: 150px; background-color: #222; display: flex;
                                     align-items: center; justify-content: center; border-radius: 5px;
                                     color: #555; font-size: 0.9em;">
@@ -124,7 +78,6 @@ if fav_movie_input:
     else:
         st.info("No movies found matching your search. Try a different query!")
 else:
-    # Clear search results display when search input is empty
     st.session_state.search_results_display = []
 
 # ----------------- Favorite Movie Thumbnail and Details -----------------
@@ -139,38 +92,15 @@ if st.session_state.favorite:
         fav_cols = st.columns([1, 4])
 
         with fav_cols[0]:
-            # This section keeps its specific HTML for now for its unique overlay.
-            image_or_placeholder_html_fav = ""
+            # --- Native Streamlit display for favorite movie ---
             if poster_url:
-                image_or_placeholder_html_fav = f'<img src="{poster_url}" alt="{st.session_state.favorite}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 5px;">'
+                st.image(poster_url, width=150)
             else:
-                image_or_placeholder_html_fav = f'''
-                <div style="width: 100%; height: 225px; background-color: #333; display: flex;
-                            align-items: center; justify-content: center; border-radius: 5px; text-align: center;
-                            color: #bbb; font-size: 1em; font-weight: bold; padding: 10px; box-sizing: border-box;">
-                    No Poster Available
-                </div>
-                '''
+                st.markdown('<div style="width:150px; height:225px; background-color:#333; display:flex; align-items:center; justify-content:center; border-radius:5px; color:#bbb; text-align:center; font-size:1em; font-weight:bold;">No Poster Available</div>', unsafe_allow_html=True)
+                st.markdown("<br>", unsafe_allow_html=True) # Add some space
 
-            rating_html_fav = ""
-            if rating is not None and rating != 'N/A':
-                rating_html_fav = f'''
-                <div style="position: absolute; top: 5px; right: 5px;
-                             background-color: rgba(0, 0, 0, 0.7); color: white;
-                             padding: 3px 6px; border-radius: 5px; font-size: 0.8em;
-                             font-weight: bold; z-index: 1;">
-                    ⭐ {rating:.1f}
-                </div>
-                '''
-            st.markdown(
-                f"""
-                <div style="position: relative; width: 150px; height: 225px; margin-bottom: 10px;">
-                    {image_or_placeholder_html_fav}
-                    {rating_html_fav}
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+            st.markdown(f"**⭐ {rating if rating != 'N/A' else 'N/A'}**")
+
 
         with fav_cols[1]:
             if tagline:
@@ -228,8 +158,15 @@ with cols[1]:
                 poster_url, rating, _ = get_movie_details_tmdb(tmdb_id)
 
                 with cols_row[col_idx]:
-                    card_html_content = get_movie_card_html_simplified(name, poster_url, rating, img_height_css="150px")
-                    st.markdown(card_html_content, unsafe_allow_html=True)
+                    # --- Native Streamlit display for popular movies ---
+                    if poster_url:
+                        st.image(poster_url, use_column_width=True)
+                    else:
+                        st.markdown('<div style="background-color:#333; height:150px; display:flex; align-items:center; justify-content:center; border-radius:5px; color:#bbb; text-align:center; font-size:0.9em;">No Poster Available</div>', unsafe_allow_html=True)
+                        st.markdown("<br>", unsafe_allow_html=True) # Add some space
+
+                    st.markdown(f"**⭐ {rating if rating != 'N/A' else 'N/A'}**")
+                    st.markdown(f"**{name}**")
 
                     if st.button("Select", key=f"pop_select_{name}_{tmdb_id}"):
                         st.session_state.favorite = name
@@ -271,12 +208,18 @@ if st.button("Recommend Movies 🎯"):
                 reason = rec['reason']
 
                 poster_url, rating, tagline = get_movie_details_tmdb(tmdb_id)
-                local_details = get_movie_details_from_df(title) # Fetch local details here
+                local_details = get_movie_details_from_df(title)
 
                 cols_rec = st.columns([1, 4])
                 with cols_rec[0]:
-                    card_html_content = get_movie_card_html_simplified(title, poster_url, rating, width_css="100px", img_height_css="150px")
-                    st.markdown(card_html_content, unsafe_allow_html=True)
+                    # --- Native Streamlit display for recommended movies ---
+                    if poster_url:
+                        st.image(poster_url, width=100)
+                    else:
+                        st.markdown('<div style="width:100px; height:150px; background-color:#333; display:flex; align-items:center; justify-content:center; border-radius:5px; color:#bbb; text-align:center; font-size:0.9em;">No Poster Available</div>', unsafe_allow_html=True)
+                        st.markdown("<br>", unsafe_allow_html=True) # Add some space
+
+                    st.markdown(f"**⭐ {rating if rating != 'N/A' else 'N/A'}**")
 
                 with cols_rec[1]:
                     st.markdown(f"**{title}**")
