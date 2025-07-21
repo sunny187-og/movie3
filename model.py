@@ -124,4 +124,6 @@ def get_all_genres():
             all_genres.add(genre.strip())
     return sorted(all_genres)
 
+# Load data on module import
+load_data()
 
