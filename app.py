@@ -8,6 +8,15 @@ st.set_page_config(page_title="Movie Recommender", layout="wide")
 # ----------------- Session Init -----------------
 if "favorite" not in st.session_state:
     st.session_state.favorite = None
+if "page" not in st.session_state:
+    st.session_state.page = 0
+# Initialize popular_movies and pages ONLY ONCE
+if "popular_movies_data" not in st.session_state:
+    all_movies_items = list(get_all_movies().items())
+    num_samples = min(30, len(all_movies_items))
+    st.session_state.popular_movies_data = random.sample(all_movies_items, num_samples)
+    st.session_state.popular_movies_pages = [st.session_state.popular_movies_data[i:i+10] for i in range(0, len(st.session_state.popular_movies_data), 10)]
+
 
 # ----------------- Header -----------------
 st.title("🎬 Movie Recommender")
@@ -24,6 +33,7 @@ if fav_movie_input:
         # Use a distinct key for each button to avoid conflicts
         if st.button(movie_title, key=f"fav_search_btn_{i}"):
             st.session_state.favorite = movie_title
+            st.rerun() # Added rerun for immediate feedback
 
 # ----------------- Favorite Movie Thumbnail -----------------
 if st.session_state.favorite:
@@ -37,31 +47,33 @@ if st.session_state.favorite:
 
 # ----------------- Popular Movies Scroll Section -----------------
 st.markdown("#### Or pick from popular movies")
-# Get a list of (title, tmdb_id) tuples from all_movies dictionary
-all_movie_items = list(all_movies.items())
-# Ensure there are enough movies to sample, otherwise take all
-num_samples = min(30, len(all_movie_items))
-popular_movies = random.sample(all_movie_items, num_samples)
-pages = [popular_movies[i:i+10] for i in range(0, len(popular_movies), 10)]
 
-if "page" not in st.session_state:
-    st.session_state.page = 0
+# Use the cached data from session state
+pages = st.session_state.popular_movies_pages
 
 cols = st.columns([1, 10, 1])
 with cols[0]:
-    if st.button("⬅️", key="prev_page"): # Changed key to avoid conflict
+    if st.button("⬅️", key="prev_page"):
         st.session_state.page = max(0, st.session_state.page - 1)
+        st.rerun() # Rerun to update the page display
 
 with cols[2]:
-    if st.button("➡️", key="next_page"): # Changed key to avoid conflict
+    if st.button("➡️", key="next_page"):
         st.session_state.page = min(len(pages) - 1, st.session_state.page + 1)
+        st.rerun() # Rerun to update the page display
 
 # Display grid of 2 rows x 5 columns
 with cols[1]:
-    grid = pages[st.session_state.page]
-    for row_idx in range(2): # Use row_idx to avoid conflict with 'row' var
+    # Ensure current page is valid after potential resets or changes
+    current_page_idx = st.session_state.page
+    if not (0 <= current_page_idx < len(pages)):
+        current_page_idx = 0 # Reset to first page if out of bounds
+        st.session_state.page = 0
+
+    grid = pages[current_page_idx]
+    for row_idx in range(2):
         cols_row = st.columns(5)
-        for col_idx in range(5): # Use col_idx to avoid conflict with 'col' var
+        for col_idx in range(5):
             idx = row_idx * 5 + col_idx
             if idx < len(grid):
                 name, tmdb_id = grid[idx] # 'name' here is the movie title
@@ -76,15 +88,23 @@ with cols[1]:
                     # Add an explicit button for selection below the image
                     if st.button("Select", key=f"pop_select_{name}_{tmdb_id}"): # Unique key combining name and tmdb_id
                         st.session_state.favorite = name
-                        st.rerun() # Rerun to immediately update the favorite movie thumbnail
+                        # We do NOT want to change st.session_state.page here.
+                        # st.rerun() will simply re-render the app with the NEW favorite.
+                        st.rerun()
 
 # ----------------- Additional Preferences -----------------
 st.markdown("### Additional Preferences")
 
-actor = st.selectbox("🎭 Favorite Actor", [""] + get_all_actors())
-director = st.selectbox("🎬 Favorite Director", [""] + get_all_directors())
-genre = st.selectbox("🎞️ Favorite Genre", [""] + get_all_genres())
-mood = st.selectbox("🧠 Your Mood", ["", "Happy", "Sad", "Excited", "Romantic", "Curious", "Dark", "Calm"])
+# Ensure the selectbox options are fetched on each rerun
+actor_options = [""] + get_all_actors()
+director_options = [""] + get_all_directors()
+genre_options = [""] + get_all_genres()
+
+actor = st.selectbox("🎭 Favorite Actor", actor_options, key="actor_select")
+director = st.selectbox("🎬 Favorite Director", director_options, key="director_select")
+genre = st.selectbox("🎞️ Favorite Genre", genre_options, key="genre_select")
+mood = st.selectbox("🧠 Your Mood", ["", "Happy", "Sad", "Excited", "Romantic", "Curious", "Dark", "Calm"], key="mood_select")
+
 
 # ----------------- Recommendation -----------------
 if st.button("Recommend Movies 🎯"):
@@ -109,7 +129,7 @@ if st.button("Recommend Movies 🎯"):
                 reason = rec['reason']
                 poster_url, rating, tagline = get_movie_details(tmdb_id)
 
-                cols_rec = st.columns([1, 4]) # Changed variable name to avoid conflict
+                cols_rec = st.columns([1, 4])
                 with cols_rec[0]:
                     if poster_url:
                         st.image(poster_url, width=100)
