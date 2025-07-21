@@ -96,7 +96,7 @@ if st.session_state.favorite:
 
             st.markdown("---") # Separator
 
-# ----------------- Popular Movies Scroll Section -----------------
+# ----------------- Popular Movies Scroll Section (FIXED DIV RENDERING HERE) -----------------
 st.markdown("#### Or pick from popular movies")
 
 pages = st.session_state.popular_movies_pages
@@ -128,16 +128,29 @@ with cols[1]:
                 poster_url, rating, _ = get_movie_details_tmdb(tmdb_id)
 
                 with cols_row[col_idx]:
-                    # Display rating first, directly above the image in popular movies
-                    if rating and rating != 'N/A':
-                        st.markdown(f"**⭐ {rating:.1f}**", unsafe_allow_html=True)
-                    else:
-                        st.markdown("⭐ N/A")
-
                     if poster_url:
-                        st.image(poster_url, caption=name, use_container_width=True)
+                        # --- FIX APPLIED HERE for Popular Movies section ---
+                        st.markdown(
+                            f"""
+                            <div style="position: relative;">
+                                <img src="{poster_url}" alt="{name}" style="width: 100%; height: auto; object-fit: cover; border-radius: 5px;">
+                                {f'''
+                                <div style="position: absolute; top: 5px; right: 5px;
+                                             background-color: rgba(0, 0, 0, 0.7); color: white;
+                                             padding: 2px 5px; border-radius: 3px; font-size: 0.7em; font-weight: bold;">
+                                    ⭐ {rating:.1f}
+                                </div>
+                                ''' if rating and rating != 'N/A' else ''}
+                                <div style="text-align: center; font-size: 0.9em; margin-top: 5px;">{name}</div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
                     else:
+                        # Fallback if no poster
                         st.write(name)
+                        if rating and rating != 'N/A':
+                            st.markdown(f"**⭐ {rating:.1f}**")
 
                     if st.button("Select", key=f"pop_select_{name}_{tmdb_id}"):
                         st.session_state.favorite = name
@@ -183,6 +196,7 @@ if st.button("Recommend Movies 🎯"):
                 cols_rec = st.columns([1, 4])
                 with cols_rec[0]:
                     if poster_url:
+                        # Rating overlay for recommended movies (already working)
                         st.markdown(
                             f"""
                             <div style="position: relative; width: 100px; height: 150px;">
