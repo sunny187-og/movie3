@@ -1,6 +1,6 @@
 import streamlit as st
 import random
-# Ensure model.py is correctly updated with all previous fixes
+ 
 from model import recommend, get_all_movies, get_all_actors, get_all_directors, get_all_genres, get_movie_details_from_df
 from utils import get_movie_details as get_movie_details_tmdb # Renamed to avoid clash with local function
 
@@ -80,6 +80,7 @@ all_movies = get_all_movies()
 fav_movie_input = st.text_input("Search for your favorite movie", key="fav_input")
 
 if fav_movie_input:
+    # FIX: Corrected typo m_m_title to m_title
     filtered_titles = [m_title for m_title in all_movies.keys() if fav_movie_input.lower() in m_title.lower()]
     # Store the filtered results in session state for consistent display
     st.session_state.search_results_display = filtered_titles[:10] # Cap at 10 for 2x5 grid
@@ -247,7 +248,7 @@ genre = st.selectbox("🎞️ Favorite Genre", genre_options, key="genre_select"
 mood = st.selectbox("🧠 Your Mood", ["", "Happy", "Sad", "Excited", "Romantic", "Curious", "Dark", "Calm"], key="mood_select")
 
 
-# ----------------- Recommendation (UPDATED WITH MORE DETAILS) -----------------
+# ----------------- Recommendation -----------------
 if st.button("Recommend Movies 🎯"):
     if not st.session_state.favorite:
         st.warning("Please select a favorite movie first.")
@@ -274,7 +275,6 @@ if st.button("Recommend Movies 🎯"):
 
                 cols_rec = st.columns([1, 4])
                 with cols_rec[0]:
-                    # Use the simplified helper for consistent rendering, including no-poster box
                     card_html_content = get_movie_card_html_simplified(title, poster_url, rating, width_css="100px", img_height_css="150px")
                     st.markdown(card_html_content, unsafe_allow_html=True)
 
@@ -283,7 +283,6 @@ if st.button("Recommend Movies 🎯"):
                     st.markdown(f"⭐ IMDb: {rating if rating else 'N/A'}")
                     st.markdown(f"📝 {tagline if tagline else reason}")
 
-                    # Display Actor, Director, Genre for Recommended Movies
                     if local_details:
                         actors_display = ", ".join(local_details['top_actors']) if local_details['top_actors'] else 'N/A'
                         st.markdown(f"**🎭 Actors:** {actors_display}")
